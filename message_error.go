@@ -6,6 +6,6 @@ import "fmt"
 // writing a mesage to filesystem.
 type MessageError string
 
-func (me MessageError) Error() string {
-	return fmt.Sprintf("Message error: %s", string(me))
+func (msge MessageError) Error() string {
+	return fmt.Sprintf("Message error: %s", string(msge))
 }

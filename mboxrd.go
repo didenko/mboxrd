@@ -30,7 +30,7 @@ func Extract(mboxrd io.Reader, messages chan chan string, errors chan error) {
 
 	var (
 		line      string
-		prevEmpty bool = true
+		prevEmpty = true
 		message   chan string
 	)
 
@@ -68,7 +68,7 @@ func Extract(mboxrd io.Reader, messages chan chan string, errors chan error) {
 			line = line[1:]
 
 			if message == nil {
-				errors <- MboxrdError("Data found before a message beginning")
+				errors <- MboxError("Data found before a message beginning")
 				return
 			}
 
@@ -81,7 +81,7 @@ func Extract(mboxrd io.Reader, messages chan chan string, errors chan error) {
 		default:
 
 			if message == nil {
-				errors <- MboxrdError("Data found before a message beginning")
+				errors <- MboxError("Data found before a message beginning")
 				return
 			}
 
