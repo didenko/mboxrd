@@ -10,6 +10,8 @@ The project is licensed under the [BSD 3-Clause License - see the `LICENSE.txt` 
 
 The package provides both libraries and a buildable executable. See the code documentation on using the libraries.
 
+[![GoDoc](https://godoc.org/github.com/didenko/mboxrd?status.svg)](https://godoc.org/github.com/didenko/mboxrd)
+
 # Using the `mboxrd_split` executable
 
 The executable takes the following parameters:
