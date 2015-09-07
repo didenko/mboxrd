@@ -2,11 +2,7 @@ package mboxrd
 
 import (
 	"bufio"
-	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
-	"path"
+	"io"
 	"regexp"
 )
 
@@ -19,9 +15,18 @@ var (
 	reUnescape   = regexp.MustCompile(`^\>+From `)
 )
 
-type MakeName func(line string) (name string)
-
-func Extract(inFile string, outDir string, lg *log.Logger, nameFunc MakeName) error {
+// Extract processes all lines from the the mboxrd reader
+// and puts resulting messages each as its own channel into
+// the provided messages channel.
+//
+// It will stop only if it runs into non-empty lines prior
+// to a message header. Otherwise it will continue processing
+// the lines in assumption that the message archive format
+// is correct.
+//
+// Each message's channel and the parent messages' channel
+// are closed after the mbox data is exhausted.
+func Extract(mboxrd io.Reader, messages chan chan string, errors chan error) {
 
 	var (
 		line      string
@@ -29,15 +34,7 @@ func Extract(inFile string, outDir string, lg *log.Logger, nameFunc MakeName) er
 		message   chan string
 	)
 
-	fmt.Println("in Extract")
-
-	mbox, err := os.Open(inFile)
-	if err != nil {
-		return err
-	}
-	defer mbox.Close()
-
-	scanner := bufio.NewScanner(mbox)
+	scanner := bufio.NewScanner(mboxrd)
 
 	for scanner.Scan() {
 
@@ -61,7 +58,7 @@ func Extract(inFile string, outDir string, lg *log.Logger, nameFunc MakeName) er
 			}
 
 			message = make(chan string)
-			go digest(message, outDir, lg, nameFunc)
+			messages <- message
 
 			message <- line
 			prevEmpty = false
@@ -71,7 +68,8 @@ func Extract(inFile string, outDir string, lg *log.Logger, nameFunc MakeName) er
 			line = line[1:]
 
 			if message == nil {
-				return MboxrdError("Data found before a message beginning")
+				errors <- MboxrdError("Data found before a message beginning")
+				return
 			}
 
 			if prevEmpty {
@@ -83,7 +81,8 @@ func Extract(inFile string, outDir string, lg *log.Logger, nameFunc MakeName) er
 		default:
 
 			if message == nil {
-				return MboxrdError("Data found before a message beginning")
+				errors <- MboxrdError("Data found before a message beginning")
+				return
 			}
 
 			if prevEmpty {
@@ -98,48 +97,11 @@ func Extract(inFile string, outDir string, lg *log.Logger, nameFunc MakeName) er
 		close(message)
 	}
 
-	if err = scanner.Err(); err != nil {
-		return err
+	if err := scanner.Err(); err != nil {
+		errors <- err
 	}
 
-	return nil
-}
+	close(messages)
 
-func digest(message chan string, outDir string, lg *log.Logger, nameFunc MakeName) {
-
-	var fileName string
-
-	tempFile, err := ioutil.TempFile(outDir, "_msg_")
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	for line := range message {
-		tempFile.WriteString(line + crlf)
-		if fileName == "" {
-			fileName = nameFunc(line)
-		}
-	}
-
-	if fileName == "" {
-		lg.Println(
-			MessageError(
-				fmt.Sprintf(
-					"No file name received, the message was left in the %q file",
-					tempFile.Name())))
-		return
-	}
-
-	fullName := path.Join(outDir, fileName)
-	err = os.Rename(tempFile.Name(), fullName)
-	if err != nil {
-		lg.Println(
-			MessageError(
-				fmt.Sprintf(
-					"Problem renaming %q into %q, the file may have either of the names. Error: %s",
-					tempFile.Name(),
-					fullName,
-					err.Error())))
-	}
+	return
 }

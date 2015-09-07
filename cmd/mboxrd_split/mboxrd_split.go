@@ -2,27 +2,28 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
-	"strings"
-	"time"
+	"sync"
 
 	"github.com/didenko/mboxrd"
 )
 
 var (
-	lg        *log.Logger = log.New(os.Stderr, "", log.Lshortfile)
-	loc       *time.Location
-	err       error
-	mbox, dir string
+	lg    *log.Logger = log.New(os.Stderr, "", log.Lshortfile)
+	err   error
+	mbox  string
+	dir   string
+	msgWG sync.WaitGroup
 )
 
-func init() {
-	loc, err = time.LoadLocation("UTC")
-	if err != nil {
-		lg.Fatal(err)
+func logErrors(lg *log.Logger, errors chan error) {
+	for err := range errors {
+		lg.Println(err)
 	}
+}
+
+func init() {
 
 	flag.StringVar(&dir, "dir", "", "A directory to put the resulting messages to")
 	flag.StringVar(&mbox, "mbox", "", "An mbox file to process")
@@ -34,28 +35,24 @@ func init() {
 }
 
 func main() {
-	err = mboxrd.Extract(mbox, dir, lg, func(line string) string {
 
-		const datePrefix = "Date: "
-
-		if strings.HasPrefix(line, datePrefix) {
-
-			t, er := time.Parse("Mon, 2 Jan 2006 15:04:05 -0700", strings.TrimPrefix(line, datePrefix))
-			if er != nil {
-				lg.Println(
-					fmt.Errorf(
-						"Failed to parse the timestamp. Error: %s",
-						er.Error()))
-				return ""
-			}
-
-			return t.In(loc).Format("060102150405") + ".eml"
-		}
-
-		return ""
-	})
-
+	mboxFile, err := os.Open(mbox)
 	if err != nil {
-		lg.Fatal(err)
+		lg.Panic(err)
 	}
+	defer mboxFile.Close()
+
+	messages := make(chan chan string)
+	errors := make(chan error)
+
+	go logErrors(lg, errors)
+
+	go mboxrd.Extract(mboxFile, messages, errors)
+
+	for message := range messages {
+		msgWG.Add(1)
+		go mboxrd.WriteMessage(message, errors, dir, &msgWG, mboxrd.NameFromTimestamp)
+	}
+
+	msgWG.Wait()
 }
