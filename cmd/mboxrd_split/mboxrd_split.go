@@ -51,7 +51,12 @@ func main() {
 
 	for message := range messages {
 		msgWG.Add(1)
-		go mboxrd.WriteMessage(message, errors, dir, &msgWG, mboxrd.NameFromTimestamp)
+		go mboxrd.WriteMessage(
+			message,
+			errors,
+			dir,
+			&msgWG,
+			mboxrd.NameFromTimeUser("%s_%s.eml", errors))
 	}
 
 	msgWG.Wait()

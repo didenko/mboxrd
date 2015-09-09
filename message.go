@@ -15,7 +15,7 @@ import (
 //
 // All error are posted in the parameter channel. The `WaitGroup`
 // parameter must be properly initialised and incremented prior
-// to calling this function, or be supplied as `nil`
+// to calling this function, or be supplied as `nil` if not needed.
 func WriteMessage(
 	message chan string,
 	errors chan error,
