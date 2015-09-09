@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	lg    *log.Logger = log.New(os.Stderr, "", log.Lshortfile)
+	lg    *log.Logger = log.New(os.Stderr, "", log.LstdFlags)
 	err   error
 	mbox  string
 	dir   string
@@ -31,6 +31,15 @@ func init() {
 
 	if dir == "" || mbox == "" {
 		lg.Fatal("Both dir and mbox parameters are required")
+	}
+
+	fi, err := os.Stat(dir)
+	if err != nil {
+		lg.Fatalf("Failed to open the path %q: %s\n", dir, err)
+	}
+
+	if !fi.Mode().IsDir() {
+		lg.Fatalf("Error: the %q path is not a directory", dir)
 	}
 }
 
