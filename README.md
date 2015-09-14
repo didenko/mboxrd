@@ -16,10 +16,13 @@ The package provides both libraries and a buildable executable. See the code doc
 
 The executable takes the following parameters:
 
-    -dir  <name>   : A directory to put the resulting messages to.
-                     The directory must exist before running the program.
+    -dir  <name>     : A directory to put the resulting messages to.
+                       The directory must exist before running the program.
 
-    -mbox <name>   : An mbox file to process and split into messages.
+    -mbox <name>     : An mbox file to process and split into messages.
+
+    -email <address> : An email which correspondence to be captured. Only
+                       the actual address should be provided.
 
 The program does not preserve unfinished last line of the last message in the archive. In the resulting files all message lines end with CRLF after the processing.
 
