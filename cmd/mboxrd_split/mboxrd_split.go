@@ -14,6 +14,7 @@ var (
 	err   error
 	mbox  string
 	dir   string
+	email string
 	msgWG sync.WaitGroup
 )
 
@@ -27,10 +28,11 @@ func init() {
 
 	flag.StringVar(&dir, "dir", "", "A directory to put the resulting messages to")
 	flag.StringVar(&mbox, "mbox", "", "An mbox file to process")
+	flag.StringVar(&email, "email", "", "An email which correspondence to be captured")
 	flag.Parse()
 
 	if dir == "" || mbox == "" {
-		lg.Fatal("Both dir and mbox parameters are required")
+		lg.Fatal("All of: dir, mbox, and email parameters are required")
 	}
 
 	fi, err := os.Stat(dir)
@@ -64,8 +66,9 @@ func main() {
 			message,
 			errors,
 			dir,
-			&msgWG,
-			mboxrd.NameFromTimeUser("%s_%s.eml", errors))
+			mboxrd.AllWith([]string{email}, errors),
+			mboxrd.NameFromTimeUser("%s_%s.eml", errors),
+			&msgWG)
 	}
 
 	msgWG.Wait()

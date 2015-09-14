@@ -8,26 +8,47 @@ import (
 	"sync"
 )
 
+type (
+	ByLineAdmit func(string, chan error) bool
+	ByLineName  func(string, chan error) string
+)
+
 // WriteMessage receives a message text from the `message` channel
 // and writes it into a file in the destination `dir` directory.
-// The message file name is constructed by the `nameFunc` parameter
-// function.
 //
-// All error are posted in the parameter channel. The `WaitGroup`
-// parameter must be properly initialised and incremented prior
-// to calling this function, or be supplied as `nil` if not needed.
+// All error are posted in the `error` parameter channel.
+//
+// An `admit` parameter allows to determine if the message is left
+// in the target directory. The function is called for each line
+// in the message, uncluding headers. The value returned by the
+// `admit` function determines if the message is kept in the
+// directory.
+//
+// The message file name is constructed by the `name` parameter
+// function. The function is called for each line in the
+// message, uncluding headers, until it returns a non-empty
+// string. If `name` parameter is `nill` then messages will stay
+// in randomly named temporary files starting with `_msg_` prefix
+//
+// The `WaitGroup` parameter must be properly initialised and
+// incremented prior to calling this function, or be supplied as
+// `nil` if not needed.
 func WriteMessage(
 	message chan string,
 	errors chan error,
 	dir string,
-	wg *sync.WaitGroup,
-	nameFunc func(string, chan error) string) {
+	admit ByLineAdmit,
+	name ByLineName,
+	wg *sync.WaitGroup) {
 
 	if wg != nil {
 		defer wg.Done()
 	}
 
-	var msgFile string
+	var (
+		msgFile string
+		allowed = true
+	)
 
 	tempFile, err := ioutil.TempFile(dir, "_msg_")
 	if err != nil {
@@ -36,13 +57,40 @@ func WriteMessage(
 	}
 
 	for line := range message {
+
+		if admit != nil {
+			allowed = admit(line, errors)
+		}
+
 		tempFile.WriteString(line + crlf)
-		if msgFile == "" {
-			msgFile = nameFunc(line, errors)
+		if name != nil && msgFile == "" {
+			msgFile = name(line, errors)
 		}
 	}
 
-	if msgFile == "" {
+	if !allowed {
+		defer func() {
+
+			if err := tempFile.Close(); err != nil {
+				errors <- MessageError(
+					fmt.Sprintf(
+						"Problem while closing the %s temporary file: %s",
+						tempFile.Name(),
+						err.Error()))
+			}
+
+			if err := os.Remove(tempFile.Name()); err != nil {
+				errors <- MessageError(
+					fmt.Sprintf(
+						"Problem while deleting the %s temporary file: %s",
+						tempFile.Name(),
+						err.Error()))
+			}
+		}()
+		return
+	}
+
+	if name != nil && msgFile == "" {
 		errors <- MessageError(
 			fmt.Sprintf(
 				"File name did not constuct, the message left in the %q file",

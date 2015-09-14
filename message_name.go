@@ -48,7 +48,7 @@ func NameFromTime(line string, errors chan error) string {
 //
 // It is an example on how to construct the file name from multiple
 // headers.
-func NameFromTimeUser(format string, errors chan error) func(string, chan error) string {
+func NameFromTimeUser(format string, errors chan error) ByLineName {
 	const (
 		timePrefix = "Date: "
 		fromPrefix = "From: "
