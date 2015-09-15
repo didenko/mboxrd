@@ -31,7 +31,7 @@ func init() {
 	flag.StringVar(&email, "email", "", "An email which correspondence to be captured")
 	flag.Parse()
 
-	if dir == "" || mbox == "" {
+	if dir == "" || mbox == "" || email == "" {
 		lg.Fatal("All of: dir, mbox, and email parameters are required")
 	}
 
