@@ -5,9 +5,17 @@ import (
 	"regexp"
 )
 
-func AdmitAnyPattern(criteria []*regexp.Regexp, errors chan error) ByLineAdmit {
+type Criterion struct {
+	OnlyHeaders bool
+	RE          *regexp.Regexp
+}
 
-	var admitted = false
+func AdmitAnyPattern(criteria []Criterion, errors chan error) ByLineAdmit {
+
+	var (
+		admitted  = false
+		inHeaders = true
+	)
 
 	return func(line string, errors chan error) bool {
 
@@ -15,8 +23,17 @@ func AdmitAnyPattern(criteria []*regexp.Regexp, errors chan error) ByLineAdmit {
 			return true
 		}
 
+		if inHeaders && line == "" {
+			inHeaders = false
+		}
+
 		for _, permit := range criteria {
-			if admitted = permit.MatchString(line); admitted {
+
+			if permit.OnlyHeaders && !inHeaders {
+				continue
+			}
+
+			if admitted = permit.RE.MatchString(line); admitted {
 				return true
 			}
 		}
@@ -31,12 +48,12 @@ const (
 
 func AllWith(emails []string, errors chan error) ByLineAdmit {
 
-	criteria := make([]*regexp.Regexp, len(emails)*2)
+	criteria := make([]Criterion, len(emails)*2)
 
 	for i, email := range emails {
 		pos := i * 2
-		criteria[pos] = regexp.MustCompile(fmt.Sprintf(sdrFmt, email))
-		criteria[pos+1] = regexp.MustCompile(fmt.Sprintf(rvrFmt, email))
+		criteria[pos] = Criterion{true, regexp.MustCompile(fmt.Sprintf(sdrFmt, email))}
+		criteria[pos+1] = Criterion{true, regexp.MustCompile(fmt.Sprintf(rvrFmt, email))}
 	}
 
 	return AdmitAnyPattern(criteria, errors)
