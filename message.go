@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 )
 
@@ -90,24 +91,41 @@ func WriteMessage(
 		return
 	}
 
+	tempFileEml := filepath.Base(tempFile.Name()) + ".eml"
 	if name != nil && msgFile == "" {
+		msgFile = tempFileEml
 		errors <- MessageError(
 			fmt.Sprintf(
-				"File name did not constuct, the message left in the %q file",
-				tempFile.Name()))
-		return
+				"File name did not constuct, moving message to the %q file",
+				msgFile))
 	}
 
 	msgPath := path.Join(dir, msgFile)
 
 	_, err = os.Stat(msgPath)
 	if err == nil {
-		errors <- MessageError(
-			fmt.Sprintf(
-				"The message file %q already exists, the message left in the %q file",
-				msgPath,
-				tempFile.Name()))
-		return
+
+		if msgFile != tempFileEml {
+
+			msgFile = tempFileEml
+			errors <- MessageError(
+				fmt.Sprintf(
+					"The message file %q already exists, moving message to the %q file",
+					msgPath,
+					msgFile))
+
+			msgPath = path.Join(dir, msgFile)
+			_, err = os.Stat(msgPath)
+		}
+
+		if err == nil {
+			errors <- MessageError(
+				fmt.Sprintf(
+					"The message file %q already exists, the message left in the %q file",
+					msgPath,
+					tempFile.Name()))
+			return
+		}
 	}
 
 	err = os.Rename(tempFile.Name(), msgPath)
