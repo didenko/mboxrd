@@ -10,12 +10,14 @@ import (
 )
 
 var (
-	lg    *log.Logger = log.New(os.Stderr, "", log.LstdFlags)
-	err   error
-	mbox  string
-	dir   string
-	email string
-	msgWG sync.WaitGroup
+	lg     *log.Logger = log.New(os.Stderr, "", log.LstdFlags)
+	err    error
+	mbox   string
+	dir    string
+	email  string
+	emlWG  sync.WaitGroup
+	origWG sync.WaitGroup
+	workWG sync.WaitGroup
 )
 
 func logErrors(lg *log.Logger, errors chan error) {
@@ -54,22 +56,41 @@ func main() {
 	defer mboxFile.Close()
 
 	messages := make(chan chan string)
+	emlNames := make(chan string)
 	errors := make(chan error)
 
 	go logErrors(lg, errors)
 
 	go mboxrd.Extract(mboxFile, messages, errors)
 
-	for message := range messages {
-		msgWG.Add(1)
-		go mboxrd.WriteMessage(
-			message,
-			errors,
-			dir,
-			mboxrd.AllWith([]string{email}, errors),
-			mboxrd.NameFromTimeUser("%s_%s.eml", errors),
-			&msgWG)
-	}
+	workWG.Add(1)
+	go func() {
+		defer workWG.Done()
+		for message := range messages {
+			origWG.Add(1)
+			go mboxrd.WriteOriginal(
+				message,
+				emlNames,
+				errors,
+				dir,
+				mboxrd.AllWith([]string{email}, errors),
+				mboxrd.NameFromTimeUser("%s_%s.eml", errors),
+				&origWG)
+		}
+	}()
 
-	msgWG.Wait()
+	go func() {
+		defer workWG.Done()
+		for eml := range emlNames {
+			emlWG.Add(1)
+			go mboxrd.UnpackMessage(
+				eml,
+				errors,
+				&emlWG)
+		}
+	}()
+
+	workWG.Wait()
+	origWG.Wait()
+	emlWG.Wait()
 }

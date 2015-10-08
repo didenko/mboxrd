@@ -14,7 +14,7 @@ type (
 	ByLineName  func(string, chan error) string
 )
 
-// WriteMessage receives a message text from the `message` channel
+// WriteOriginal receives a message text from the `message` channel
 // and writes it into a file in the destination `dir` directory.
 //
 // All error are posted in the `error` parameter channel.
@@ -34,8 +34,9 @@ type (
 // The `WaitGroup` parameter must be properly initialised and
 // incremented prior to calling this function, or be supplied as
 // `nil` if not needed.
-func WriteMessage(
+func WriteOriginal(
 	message chan string,
+	emlName chan string,
 	errors chan error,
 	dir string,
 	admit ByLineAdmit,
@@ -124,6 +125,7 @@ func WriteMessage(
 					"The message file %q already exists, the message left in the %q file",
 					msgPath,
 					tempFile.Name()))
+			emlName <- tempFile.Name()
 			return
 		}
 	}
@@ -136,5 +138,8 @@ func WriteMessage(
 				tempFile.Name(),
 				msgPath,
 				err.Error()))
+		return
 	}
+
+	emlName <- msgPath
 }
