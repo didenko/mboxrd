@@ -79,7 +79,6 @@ func main() {
 		}
 	}()
 
-	workWG.Add(1)
 	go func() {
 		defer workWG.Done()
 		for eml := range emlNames {

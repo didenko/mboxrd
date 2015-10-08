@@ -65,7 +65,6 @@ func unpackPart(part *multipart.Part, emlbase string, errors chan error) {
 				err.Error()))
 		return
 	}
-	fmt.Printf("Message: %q, part %q\n", emlbase, attachmentFileName)
 }
 
 func cutExt(fname string) string {
