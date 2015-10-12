@@ -80,7 +80,6 @@ func main() {
 	}()
 
 	go func() {
-		defer workWG.Done()
 		for eml := range emlNames {
 			emlWG.Add(1)
 			go mboxrd.UnpackMessage(

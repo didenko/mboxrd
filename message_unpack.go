@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"log"
 	"mime"
 	"mime/multipart"
 	"net/mail"
@@ -12,6 +11,48 @@ import (
 	"strings"
 	"sync"
 )
+
+type getter interface {
+	Get(key string) string
+}
+
+func partsIterate(head getter, body io.Reader, emlbase string, errors chan error) {
+
+	mediaType, params, err := mime.ParseMediaType(head.Get("Content-Type"))
+	if err != nil {
+		errors <- MessageError(
+			fmt.Sprintf(
+				"failed to read a part's Content-Type in the %q message: %s",
+				emlbase,
+				err.Error()))
+		return
+	}
+
+	if !strings.HasPrefix(mediaType, "multipart/") {
+		return
+	}
+
+	mr := multipart.NewReader(body, params["boundary"])
+
+	for {
+
+		p, err := mr.NextPart()
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			errors <- MessageError(
+				fmt.Sprintf(
+					"Problem opening a part of the %q message: %s",
+					emlbase,
+					err.Error()))
+			return
+		}
+
+		partsIterate(p.Header, p, emlbase, errors)
+		unpackPart(p, emlbase, errors)
+	}
+}
 
 func unpackPart(part *multipart.Part, emlbase string, errors chan error) {
 
@@ -103,31 +144,5 @@ func UnpackMessage(eml string, errors chan error, wg *sync.WaitGroup) {
 		return
 	}
 
-	mediaType, params, err := mime.ParseMediaType(msg.Header.Get("Content-Type"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if strings.HasPrefix(mediaType, "multipart/") {
-
-		mr := multipart.NewReader(msg.Body, params["boundary"])
-
-		for {
-
-			part, err := mr.NextPart()
-			if err == io.EOF {
-				return
-			}
-			if err != nil {
-				errors <- MessageError(
-					fmt.Sprintf(
-						"Problem opening a part of the %q message: %s",
-						eml,
-						err.Error()))
-				return
-			}
-
-			unpackPart(part, cutExt(eml), errors)
-		}
-	}
+	partsIterate(msg.Header, msg.Body, cutExt(eml), errors)
 }
