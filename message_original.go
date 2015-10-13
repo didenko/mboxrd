@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"sync"
 )
@@ -101,7 +100,7 @@ func WriteOriginal(
 				msgFile))
 	}
 
-	msgPath := path.Join(dir, msgFile)
+	msgPath := filepath.Join(dir, msgFile)
 
 	_, err = os.Stat(msgPath)
 	if err == nil {
@@ -115,7 +114,7 @@ func WriteOriginal(
 					msgPath,
 					msgFile))
 
-			msgPath = path.Join(dir, msgFile)
+			msgPath = filepath.Join(dir, msgFile)
 			_, err = os.Stat(msgPath)
 		}
 
@@ -130,6 +129,7 @@ func WriteOriginal(
 		}
 	}
 
+	tempFile.Close()
 	err = os.Rename(tempFile.Name(), msgPath)
 	if err != nil {
 		errors <- MessageError(
