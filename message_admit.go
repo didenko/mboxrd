@@ -43,7 +43,7 @@ func AdmitAnyPattern(criteria []Criterion, errors chan error) ByLineAdmit {
 
 const (
 	sdrFmt = "^(From:|Sender:|Reply-To:).*[\\s<,:]%s[\\s>,\\]].*"
-	rvrFmt = "^(To:|Cc:|Bcc:).*[\\s<,:]%s[\\s>,\\]].*"
+	rvrFmt = "^(To:\\s|Cc:\\s|Bcc:\\s|(\\s+)).*[<,:]%s[\\s>,\\]].*"
 )
 
 func AllWith(emails []string, errors chan error) ByLineAdmit {
