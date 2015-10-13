@@ -18,6 +18,10 @@ var (
 	emlWG  sync.WaitGroup
 	origWG sync.WaitGroup
 	workWG sync.WaitGroup
+
+	messages = make(chan chan string)
+	emlNames = make(chan string)
+	errors   = make(chan error)
 )
 
 func logErrors(lg *log.Logger, errors chan error) {
@@ -33,8 +37,8 @@ func init() {
 	flag.StringVar(&email, "email", "", "An email which correspondence to be captured")
 	flag.Parse()
 
-	if dir == "" || mbox == "" || email == "" {
-		lg.Fatal("All of: dir, mbox, and email parameters are required")
+	if dir == "" || mbox == "" {
+		lg.Fatal("Parameters 'dir' and 'mbox' are required")
 	}
 
 	fi, err := os.Stat(dir)
@@ -55,10 +59,6 @@ func main() {
 	}
 	defer mboxFile.Close()
 
-	messages := make(chan chan string)
-	emlNames := make(chan string)
-	errors := make(chan error)
-
 	go logErrors(lg, errors)
 
 	go mboxrd.Extract(mboxFile, messages, errors)
@@ -67,13 +67,20 @@ func main() {
 	go func() {
 		defer workWG.Done()
 		for message := range messages {
+
 			origWG.Add(1)
+
+			var admit mboxrd.ByLineAdmit
+			if email != "" {
+				admit = mboxrd.AllWith([]string{email}, errors)
+			}
+
 			go mboxrd.WriteOriginal(
 				message,
 				emlNames,
 				errors,
 				dir,
-				mboxrd.AllWith([]string{email}, errors),
+				admit,
 				mboxrd.NameFromTimeUser("%s_%s.eml", errors),
 				&origWG)
 		}
