@@ -19,16 +19,7 @@ type getter interface {
 func partsIterate(head getter, body io.Reader, emlbase string, errors chan error) {
 
 	mediaType, params, err := mime.ParseMediaType(head.Get("Content-Type"))
-	if err != nil {
-		errors <- MessageError(
-			fmt.Sprintf(
-				"failed to read a part's Content-Type in the %q message: %s",
-				emlbase,
-				err.Error()))
-		return
-	}
-
-	if !strings.HasPrefix(mediaType, "multipart/") {
+	if err != nil || !strings.HasPrefix(mediaType, "multipart/") {
 		return
 	}
 
