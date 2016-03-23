@@ -84,7 +84,7 @@ func unpackPart(part *multipart.Part, emlbase string, errors chan error) {
 	case "", "7bit", "8bit":
 		partReader = part
 
-	case "base64":
+	case "base64", "BASE64", "Base64":
 		partReader = base64.NewDecoder(base64.StdEncoding, part)
 
 	default:
