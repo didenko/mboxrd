@@ -23,17 +23,49 @@ func init() {
 }
 
 func TimeNorm(line string, errors chan error) (string, error) {
-	t, er := time.Parse("Mon, 2 Jan 2006 15:04:05 -0700", line)
+	var l string
+
+	if li := strings.LastIndex(line, ` (`); li == -1 {
+		l = line
+	} else {
+		l = line[:li]
+	}
+
+	l = strings.TrimSpace(strings.Replace(strings.TrimSuffix(l, " UT"), `GMT`, ``, 1))
+
+	t, er := time.Parse("Mon, 2 Jan 2006 15:04:05 -0700", l)
 	if er == nil {
 		return t.In(loc).Format(timestampFormat), nil
 	}
 
-	t, er = time.Parse("Mon, 2 Jan 2006 15:04:05 -0700 (MST)", line)
+	t, er = time.Parse("2 Jan 2006 15:04:05 -0700", l)
 	if er == nil {
 		return t.In(loc).Format(timestampFormat), nil
 	}
 
-	t, er = time.Parse("2 Jan 2006 15:04:05 -0700", line)
+	t, er = time.Parse("2 Jan 2006 15:04:05 MST", l)
+	if er == nil {
+		return t.In(loc).Format(timestampFormat), nil
+	}
+
+	t, er = time.Parse("Mon, 2 Jan 2006 15:04:05 MST", l)
+	if er == nil {
+		return t.In(loc).Format(timestampFormat), nil
+	}
+
+	t, er = time.Parse("Mon, 2 Jan 2006 15:04:05", l)
+	if er == nil {
+		return t.In(loc).Format(timestampFormat), nil
+	}
+
+	t, er = time.Parse("2006-01-02 15:04:05 -0700", l)
+	if er == nil {
+		return t.In(loc).Format(timestampFormat), nil
+	}
+
+	//Wed, 6 Aug 2014 09:59:18 GMT-07:00
+
+	t, er = time.Parse("Mon, 2 Jan 2006 15:04:05 Z07:00", l)
 	if er == nil {
 		return t.In(loc).Format(timestampFormat), nil
 	}
