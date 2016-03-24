@@ -49,22 +49,30 @@ func TimeNorm(line string, errors chan error) (string, error) {
 // headers.
 func NameFromTimeUser(format string, errors chan error) ByLineName {
 	const (
-		datePrefix = "Date: "
 		fromPrefix = "From: "
 		headPrefix = "From "
 	)
 
 	var (
 		ts, fr, hd string
-		fromRE = regexp.MustCompile("(.*<)?(.*)(@.*)")
-		headRE = regexp.MustCompile("^From (.*)(@.*)")
+		fromRE = regexp.MustCompile(`(.*<)?(.*)(@.*)`)
+		headRE = regexp.MustCompile(`^From (.*)(@.*)`)
+		dateRE = regexp.MustCompile(`(?i)^date: (.*)`)
 	)
 
 	return func(line string, errors chan error) string {
 		var er error
 
-		if ts == "" && strings.HasPrefix(line, datePrefix){
-			ts, er = TimeNorm(strings.TrimPrefix(line, datePrefix), errors)
+		if ts == "" && dateRE.MatchString(line) {
+			parsedTS := dateRE.FindStringSubmatch(line)
+			if parsedTS == nil {
+				errors <- fmt.Errorf(
+					"Failed to parse the timestamp from the line %q",
+					line)
+				return ""
+			}
+
+			ts, er = TimeNorm(parsedTS[1], errors)
 			if er != nil {
 				errors <- fmt.Errorf(
 					"Failed to parse the timestamp. Error: %s",
