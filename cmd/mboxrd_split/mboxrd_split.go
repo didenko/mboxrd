@@ -14,7 +14,7 @@ var (
 	err    error
 	mbox   string
 	dir    string
-	email  string
+	addr  string
 	emlWG  sync.WaitGroup
 	origWG sync.WaitGroup
 	workWG sync.WaitGroup
@@ -34,7 +34,7 @@ func init() {
 
 	flag.StringVar(&dir, "dir", "", "A directory to put the resulting messages to")
 	flag.StringVar(&mbox, "mbox", "", "An mbox file to process")
-	flag.StringVar(&email, "email", "", "An email which correspondence to be captured")
+	flag.StringVar(&addr, "email", "", "An email which correspondence to be captured")
 	flag.Parse()
 
 	if dir == "" || mbox == "" {
@@ -71,8 +71,10 @@ func main() {
 			origWG.Add(1)
 
 			var admit mboxrd.ByLineAdmit
-			if email != "" {
-				admit = mboxrd.AllWith([]string{email}, errors)
+			if addr != "" {
+				admit = mboxrd.AllWith([]string{addr}, errors)
+			} else {
+				admit = mboxrd.AllWith([]string{}, errors)
 			}
 
 			go mboxrd.WriteOriginal(

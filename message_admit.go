@@ -10,14 +10,28 @@ type Criterion struct {
 	RE          *regexp.Regexp
 }
 
-func AdmitAnyPattern(criteria []Criterion, errors chan error) ByLineAdmit {
+const (
+	sdrFmt = "^(From:|Sender:|Reply-To:).*[\\s<,:]%s[\\s>,\\]].*"
+	rvrFmt = "^(To:\\s|Cc:\\s|Bcc:\\s|(\\s+)).*[<,:]%s[\\s>,\\]].*"
+)
+
+var (
+	banChat = regexp.MustCompile(`^X-Gmail-Labels\: Chat`)
+)
+
+func AdmitAnyPattern(criteria []Criterion, vetos []Criterion, errors chan error) ByLineAdmit {
 
 	var (
 		admitted  = false
+		banned = false
 		inHeaders = true
 	)
 
 	return func(line string, errors chan error) bool {
+
+		if banned {
+			return false
+		}
 
 		if admitted {
 			return true
@@ -25,6 +39,18 @@ func AdmitAnyPattern(criteria []Criterion, errors chan error) ByLineAdmit {
 
 		if inHeaders && line == "" {
 			inHeaders = false
+		}
+
+		for _, veto := range vetos {
+
+			if veto.OnlyHeaders && !inHeaders {
+				continue
+			}
+
+			if veto.RE.MatchString(line) {
+				banned = true
+				return false
+			}
 		}
 
 		for _, permit := range criteria {
@@ -41,20 +67,18 @@ func AdmitAnyPattern(criteria []Criterion, errors chan error) ByLineAdmit {
 	}
 }
 
-const (
-	sdrFmt = "^(From:|Sender:|Reply-To:).*[\\s<,:]%s[\\s>,\\]].*"
-	rvrFmt = "^(To:\\s|Cc:\\s|Bcc:\\s|(\\s+)).*[<,:]%s[\\s>,\\]].*"
-)
+func AllWith(addrs []string, errors chan error) ByLineAdmit {
 
-func AllWith(emails []string, errors chan error) ByLineAdmit {
+	criteria := make([]Criterion, len(addrs)*2)
+	vetos := make([]Criterion, 1)
 
-	criteria := make([]Criterion, len(emails)*2)
-
-	for i, email := range emails {
+	for i, addr := range addrs {
 		pos := i * 2
-		criteria[pos] = Criterion{true, regexp.MustCompile(fmt.Sprintf(sdrFmt, email))}
-		criteria[pos+1] = Criterion{true, regexp.MustCompile(fmt.Sprintf(rvrFmt, email))}
+		criteria[pos] = Criterion{true, regexp.MustCompile(fmt.Sprintf(sdrFmt, addr))}
+		criteria[pos+1] = Criterion{true, regexp.MustCompile(fmt.Sprintf(rvrFmt, addr))}
 	}
 
-	return AdmitAnyPattern(criteria, errors)
+	vetos[0] = Criterion{true, banChat}
+
+	return AdmitAnyPattern(criteria, vetos, errors)
 }
