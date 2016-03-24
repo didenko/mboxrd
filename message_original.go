@@ -1,6 +1,7 @@
 package mboxrd
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,6 +13,40 @@ type (
 	ByLineAdmit func(string, chan error) bool
 	ByLineName  func(string, chan error) string
 )
+
+func sameFileContent(fA, fB string) (bool, error) {
+	inA, errA := os.Open(fA)
+	if errA != nil {
+		return false, errA
+	}
+	defer inA.Close()
+	scanA := bufio.NewScanner(inA)
+	scanA.Split(bufio.ScanLines)
+
+	inB, errB := os.Open(fB)
+	if errB != nil {
+		return false, errB
+	}
+	defer inB.Close()
+	scanB := bufio.NewScanner(inB)
+	scanB.Split(bufio.ScanLines)
+
+	for a, b := scanA.Scan(), scanB.Scan(); a && b; a, b = scanA.Scan(), scanB.Scan() {
+		if scanA.Text() != scanB.Text() {
+			return false, nil
+		}
+	}
+
+	if (scanA.Err() == nil) && (scanB.Err() == nil) {
+		return true, nil
+	}
+
+	if errA = scanA.Err(); errA != nil {
+		return false, errA
+	}
+
+	return false, scanB.Err()
+}
 
 // WriteOriginal receives a message text from the `message` channel
 // and writes it into a file in the destination `dir` directory.
@@ -104,6 +139,17 @@ func WriteOriginal(
 
 	_, err = os.Stat(msgPath)
 	if err == nil {
+
+		if ok, err := sameFileContent(msgFile, tempFileEml); ok && (err == nil) {
+			if err := os.Remove(tempFileEml); err != nil {
+				errors <- MessageError(
+					fmt.Sprintf(
+						"Problem while deleting the %s temporary file: %s",
+						tempFileEml,
+						err.Error()))
+			}
+			return
+		}
 
 		if msgFile != tempFileEml {
 

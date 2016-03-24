@@ -26,7 +26,7 @@ The executable takes the following parameters:
 
 The program does not preserve unfinished last line of the last message in the archive. In the resulting files all message lines end with CRLF after the processing.
 
-During the processing it created temporary message files and then moves them into the UTC-timestamped `.eml` file. If the destination filename is already taken by another message, then the later message does not override it. It is left in the temporary file and the error is printed to `stderr`.
+During the processing it creates temporary message files and then moves them into the UTC-timestamped `.eml` file. If the destination filename is already taken by another message, then the later message does not override it. It is left in the temporary file and the error is printed to `stderr`.
 
 Also a message stays in a temporary file if the program fails to construct a name for the message file. Some forwarded messages, for example, lack the `Date: ` header.
 
