@@ -53,11 +53,15 @@ func TimeNorm(line string, errors chan error) (string, error) {
 // It is an example on how to construct the file name from multiple
 // headers.
 func NameFromTimeUser(format string, errors chan error) ByLineName {
-	const fromPrefix = "From: "
+	const (
+		fromPrefix = "From: "
+		headPrefix = "From "
+	)
 
 	var (
-		ts, fr string
+		ts, fr, hd string
 		fromRE = regexp.MustCompile("(.*<)?(.*)(@.*)")
+		headRE = regexp.MustCompile("^From (.*)(@.*)")
 	)
 
 	return func(line string, errors chan error) string {
@@ -73,8 +77,21 @@ func NameFromTimeUser(format string, errors chan error) ByLineName {
 			}
 		}
 
-		if fr == "" && strings.HasPrefix(line, fromPrefix) {
+		if hd == "" && strings.HasPrefix(line, headPrefix) {
+			parsedHead := headRE.FindStringSubmatch(line)
 
+			if parsedHead == nil {
+				errors <- fmt.Errorf(
+					"Failed to extract sender ID from the header line %q",
+					line)
+				return ""
+			}
+
+			hd_temp := parsedHead[1]
+			hd = hd_temp[len(hd_temp)-8:]
+		}
+
+		if fr == "" && strings.HasPrefix(line, fromPrefix) {
 			email := strings.TrimPrefix(line, fromPrefix)
 			parsedEmail := fromRE.FindStringSubmatch(email)
 
@@ -92,6 +109,6 @@ func NameFromTimeUser(format string, errors chan error) ByLineName {
 			return ""
 		}
 
-		return fmt.Sprintf(format, ts, fr)
+		return fmt.Sprintf(format, ts, hd, fr)
 	}
 }

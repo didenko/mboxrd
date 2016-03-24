@@ -81,7 +81,7 @@ func main() {
 				errors,
 				dir,
 				admit,
-				mboxrd.NameFromTimeUser("%s_%s.eml", errors),
+				mboxrd.NameFromTimeUser("%s_%s_%s.eml", errors),
 				&origWG)
 		}
 	}()
