@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const timestampFormat = "060102150405"
+
 var (
 	loc *time.Location
 )
@@ -21,29 +23,22 @@ func init() {
 }
 
 func TimeNorm(line string, errors chan error) (string, error) {
-	const datePrefix = "Date: "
-
-	if strings.HasPrefix(line, datePrefix) {
-
-		t, er := time.Parse("Mon, 2 Jan 2006 15:04:05 -0700", strings.TrimPrefix(line, datePrefix))
-		if er == nil {
-			return t.In(loc).Format("060102150405"), nil
-		}
-
-		t, er = time.Parse("Mon, 2 Jan 2006 15:04:05 -0700 (MST)", strings.TrimPrefix(line, datePrefix))
-		if er == nil {
-			return t.In(loc).Format("060102150405"), nil
-		}
-
-		t, er = time.Parse("2 Jan 2006 15:04:05 -0700", strings.TrimPrefix(line, datePrefix))
-		if er == nil {
-			return t.In(loc).Format("060102150405"), nil
-		}
-
-		return "", er
+	t, er := time.Parse("Mon, 2 Jan 2006 15:04:05 -0700", line)
+	if er == nil {
+		return t.In(loc).Format(timestampFormat), nil
 	}
 
-	return "", nil
+	t, er = time.Parse("Mon, 2 Jan 2006 15:04:05 -0700 (MST)", line)
+	if er == nil {
+		return t.In(loc).Format(timestampFormat), nil
+	}
+
+	t, er = time.Parse("2 Jan 2006 15:04:05 -0700", line)
+	if er == nil {
+		return t.In(loc).Format(timestampFormat), nil
+	}
+
+	return "", er
 }
 
 // NameFromTimeUser returns a closed function used to extract
@@ -54,6 +49,7 @@ func TimeNorm(line string, errors chan error) (string, error) {
 // headers.
 func NameFromTimeUser(format string, errors chan error) ByLineName {
 	const (
+		datePrefix = "Date: "
 		fromPrefix = "From: "
 		headPrefix = "From "
 	)
@@ -67,8 +63,8 @@ func NameFromTimeUser(format string, errors chan error) ByLineName {
 	return func(line string, errors chan error) string {
 		var er error
 
-		if ts == "" {
-			ts, er = TimeNorm(line, errors)
+		if ts == "" && strings.HasPrefix(line, datePrefix){
+			ts, er = TimeNorm(strings.TrimPrefix(line, datePrefix), errors)
 			if er != nil {
 				errors <- fmt.Errorf(
 					"Failed to parse the timestamp. Error: %s",
