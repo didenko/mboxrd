@@ -11,12 +11,12 @@ type Criterion struct {
 }
 
 const (
-	sdrFmt = "^(From:|Sender:|Reply-To:).*[\\s<,:]%s[\\s>,\\]].*"
-	rvrFmt = "^(To:\\s|Cc:\\s|Bcc:\\s|(\\s+)).*[<,:]%s[\\s>,\\]].*"
+	sdrFmt = `^(From:|Sender:|Reply-To:).*[\s<,:]%s[\s>,\]].*`
+	rvrFmt = `^(To:\s|Cc:\s|Bcc:\s|(\s+)).*[<,:]%s[\s>,\]].*`
 )
 
 var (
-	banChat = regexp.MustCompile(`^X-Gmail-Labels\: Chat`)
+	banChat = regexp.MustCompile(`^X-Gmail-Labels: Chat`)
 )
 
 func AdmitAnyPattern(criteria []Criterion, vetos []Criterion, errors chan error) ByLineAdmit {
@@ -42,7 +42,6 @@ func AdmitAnyPattern(criteria []Criterion, vetos []Criterion, errors chan error)
 		}
 
 		for _, veto := range vetos {
-
 			if veto.OnlyHeaders && !inHeaders {
 				continue
 			}
@@ -53,8 +52,11 @@ func AdmitAnyPattern(criteria []Criterion, vetos []Criterion, errors chan error)
 			}
 		}
 
-		for _, permit := range criteria {
+		if len(criteria) == 0 {
+			return true
+		}
 
+		for _, permit := range criteria {
 			if permit.OnlyHeaders && !inHeaders {
 				continue
 			}
@@ -63,6 +65,7 @@ func AdmitAnyPattern(criteria []Criterion, vetos []Criterion, errors chan error)
 				return true
 			}
 		}
+
 		return false
 	}
 }

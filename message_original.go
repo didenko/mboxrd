@@ -94,9 +94,7 @@ func WriteOriginal(
 
 	for line := range message {
 
-		if admit != nil {
-			allowed = admit(line, errors)
-		}
+		allowed = admit(line, errors)
 
 		tempFile.WriteString(line + crlf)
 		if name != nil && msgFile == "" {
