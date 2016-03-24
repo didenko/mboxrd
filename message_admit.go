@@ -11,7 +11,7 @@ type Criterion struct {
 }
 
 const (
-	sdrFmt = `^(From:|Sender:|Reply-To:).*[\s<,:]%s[\s>,\]].*`
+	sdrFmt = `^(From:|Sender:|Reply-To:|Return-Path:).*[\s<,:]%s[\s>,\]].*`
 	rvrFmt = `^(To:\s|Cc:\s|Bcc:\s|(\s+)).*[<,:]%s[\s>,\]].*`
 )
 
