@@ -80,16 +80,18 @@ func TimeNorm(line string, errors chan error) (string, error) {
 // It is an example on how to construct the file name from multiple
 // headers.
 func NameFromTimeUser(format string, errors chan error) ByLineName {
-	const (
-		fromPrefix = "From: "
-		headPrefix = "From "
-	)
+	const headPrefix = "From "
 
 	var (
-		ts, fr, hd string
-		fromRE = regexp.MustCompile(`(.*<)?(.*)(@.*)`)
+		ts, fr, fr_acc, hd string
+
+		in_from = false
+
+		addrRE = regexp.MustCompile(`(\w{1,})["']?(@.*)`)
 		headRE = regexp.MustCompile(`^From (.*)(@.*)`)
 		dateRE = regexp.MustCompile(`(?i)^date: (.*)`)
+		fromRE = regexp.MustCompile(`(?i)^(from:)(.*)`)
+		indentRE = regexp.MustCompile(`^\s`)
 	)
 
 	return func(line string, errors chan error) string {
@@ -127,21 +129,30 @@ func NameFromTimeUser(format string, errors chan error) ByLineName {
 			hd = hd_temp[len(hd_temp)-8:]
 		}
 
-		if fr == "" && strings.HasPrefix(line, fromPrefix) {
-			email := strings.TrimPrefix(line, fromPrefix)
-			parsedEmail := fromRE.FindStringSubmatch(email)
+		if fr == "" {
+			if parsedFrom := fromRE.FindStringSubmatch(line); parsedFrom != nil {
+				in_from = true
+				fr_acc = strings.TrimSpace( parsedFrom[2] )
 
-			if parsedEmail == nil {
-				errors <- fmt.Errorf(
-					"Failed to extract user name from the email address %q",
-					email)
-				return ""
+			} else if in_from && indentRE.MatchString(line) {
+				fr_acc = fr_acc + strings.TrimSpace(line)
+
+			} else if in_from {
+				in_from = false
+
+				parsedEmail := addrRE.FindStringSubmatch(fr_acc)
+				if parsedEmail == nil {
+					errors <- fmt.Errorf(
+						"Failed to extract user name from the email address %q",
+						fr_acc)
+					return ""
+				}
+
+				fr = parsedEmail[1]
 			}
-
-			fr = parsedEmail[2]
 		}
 
-		if ts == "" || fr == "" {
+		if ts == "" || fr == "" || hd == "" {
 			return ""
 		}
 
