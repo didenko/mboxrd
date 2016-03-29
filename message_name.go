@@ -11,18 +11,32 @@ import (
 const timestampFormat = "060102150405"
 
 var (
-	loc *time.Location
+	utc      *time.Location
+	addrRE   = regexp.MustCompile(`(\w{1,})["']?(@.*)`)
+	headRE   = regexp.MustCompile(`^From (.*)(@.*)`)
+	dateRE   = regexp.MustCompile(`(?i)^date: (.*)`)
+	fromRE   = regexp.MustCompile(`(?i)^(from:)(.*)`)
+	indentRE = regexp.MustCompile(`^\s`)
 )
 
 func init() {
 	var err error
-	loc, err = time.LoadLocation("UTC")
+	utc, err = time.LoadLocation("UTC")
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func TimeNorm(line string, errors chan error) (string, error) {
+func TimeFromLine(line string, lc *time.Location) (string, error) {
+	parsedTS := dateRE.FindStringSubmatch(line)
+	if parsedTS == nil {
+		return "", fmt.Errorf("Failed to parse the timestamp from the line %q", line)
+	}
+
+	return TimeNorm(parsedTS[1], lc)
+}
+
+func TimeNorm(line string, loc *time.Location) (string, error) {
 	var l string
 
 	if li := strings.LastIndex(line, ` (`); li == -1 {
@@ -84,29 +98,14 @@ func NameFromTimeUser(format string, errors chan error) ByLineName {
 
 	var (
 		ts, fr, fr_acc, hd string
-
-		in_from = false
-
-		addrRE = regexp.MustCompile(`(\w{1,})["']?(@.*)`)
-		headRE = regexp.MustCompile(`^From (.*)(@.*)`)
-		dateRE = regexp.MustCompile(`(?i)^date: (.*)`)
-		fromRE = regexp.MustCompile(`(?i)^(from:)(.*)`)
-		indentRE = regexp.MustCompile(`^\s`)
+		in_from            = false
 	)
 
 	return func(line string, errors chan error) string {
 		var er error
 
 		if ts == "" && dateRE.MatchString(line) {
-			parsedTS := dateRE.FindStringSubmatch(line)
-			if parsedTS == nil {
-				errors <- fmt.Errorf(
-					"Failed to parse the timestamp from the line %q",
-					line)
-				return ""
-			}
-
-			ts, er = TimeNorm(parsedTS[1], errors)
+			ts, er = TimeFromLine(line, utc)
 			if er != nil {
 				errors <- fmt.Errorf(
 					"Failed to parse the timestamp. Error: %s",
@@ -132,7 +131,7 @@ func NameFromTimeUser(format string, errors chan error) ByLineName {
 		if fr == "" {
 			if parsedFrom := fromRE.FindStringSubmatch(line); parsedFrom != nil {
 				in_from = true
-				fr_acc = strings.TrimSpace( parsedFrom[2] )
+				fr_acc = strings.TrimSpace(parsedFrom[2])
 
 			} else if in_from && indentRE.MatchString(line) {
 				fr_acc = fr_acc + strings.TrimSpace(line)

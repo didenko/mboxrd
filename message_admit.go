@@ -23,7 +23,7 @@ func AdmitAnyPattern(criteria []Criterion, vetos []Criterion, errors chan error)
 
 	var (
 		admitted  = false
-		banned = false
+		banned    = false
 		inHeaders = true
 	)
 

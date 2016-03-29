@@ -14,7 +14,7 @@ var (
 	err    error
 	mbox   string
 	dir    string
-	addr  string
+	addr   string
 	emlWG  sync.WaitGroup
 	origWG sync.WaitGroup
 	workWG sync.WaitGroup
